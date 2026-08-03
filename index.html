@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0b1020" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Noqat — a beautiful, culturally themed Dots & Boxes game. Play offline, against AI, or online." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <title>Noqat — Dots &amp; Boxes</title>
+    <style>
+      /* First-paint splash: avoids a white flash before the app bundle boots. */
+      html, body, #root { height: 100%; margin: 0; background: #0b1020; }
+      #boot {
+        position: fixed; inset: 0; display: grid; place-items: center;
+        background: radial-gradient(1200px 800px at 50% 30%, #16204a 0%, #0b1020 70%);
+        transition: opacity .5s ease; z-index: 9999;
+      }
+      #boot.done { opacity: 0; pointer-events: none; }
+      #boot svg { width: 84px; height: 84px; overflow: visible; }
+      #boot circle { fill: #e9d8a6; opacity: .25; animation: bootPulse 1.6s ease-in-out infinite; }
+      #boot circle:nth-child(2) { animation-delay: .12s }
+      #boot circle:nth-child(3) { animation-delay: .24s }
+      #boot circle:nth-child(4) { animation-delay: .36s }
+      @keyframes bootPulse { 0%,100% { opacity:.18; transform: scale(.8) } 50% { opacity:1; transform: scale(1.15) } }
+      @media (prefers-reduced-motion: reduce) { #boot circle { animation: none; opacity: .6 } }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="boot" aria-hidden="true">
+      <svg viewBox="-12 -12 84 84">
+        <circle cx="0" cy="0" r="7" style="transform-origin:0 0" />
+        <circle cx="60" cy="0" r="7" style="transform-origin:60px 0" />
+        <circle cx="0" cy="60" r="7" style="transform-origin:0 60px" />
+        <circle cx="60" cy="60" r="7" style="transform-origin:60px 60px" />
+      </svg>
+    </div>
+    <noscript>
+      <p style="color:#e9d8a6;font:16px system-ui;padding:2rem">Noqat needs JavaScript enabled to run.</p>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

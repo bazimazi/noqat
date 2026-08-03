@@ -1,0 +1,267 @@
+@import 'tailwindcss';
+
+/*
+ * Everything visual resolves through the --nq-* custom properties that
+ * `themes/tokens.ts` writes onto <html>. Components never hard-code a colour,
+ * which is what lets a theme change be a single style write instead of a
+ * re-render of the tree.
+ */
+
+@theme {
+  --font-display: var(--nq-font-display, system-ui);
+  --font-body: var(--nq-font-body, system-ui);
+  --font-numeric: var(--nq-font-numeric, ui-monospace);
+}
+
+:root {
+  --nq-bg: #0b1020;
+  --nq-bg-alt: #131a33;
+  --nq-surface: rgba(20, 28, 52, 0.72);
+  --nq-surface-alt: rgba(30, 40, 70, 0.9);
+  --nq-border: rgba(255, 255, 255, 0.14);
+  --nq-text: #f2f4fb;
+  --nq-text-muted: rgba(242, 244, 251, 0.62);
+  --nq-accent: #2ec4b6;
+  --nq-accent-alt: #e0b354;
+  --nq-radius: 16px;
+  --nq-radius-sm: 8px;
+  --nq-radius-lg: 26px;
+  --nq-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --nq-dur-fast: 120ms;
+  --nq-dur: 260ms;
+  --nq-dur-slow: 520ms;
+  --nq-glass: blur(18px) saturate(1.3);
+  --nq-type-scale: 1;
+  --nq-line-height: 1.5;
+  --nq-locale-tracking: 0;
+  --nq-font-locale: system-ui, sans-serif;
+  --nq-safe-top: env(safe-area-inset-top, 0px);
+  --nq-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  /* Locale font wins over theme font for body copy, so scripts always render. */
+  font-family: var(--nq-font-locale), var(--nq-font-body);
+  line-height: var(--nq-line-height);
+  letter-spacing: var(--nq-locale-tracking);
+  font-size: calc(16px * var(--nq-type-scale));
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background: var(--nq-bg);
+  color: var(--nq-text);
+  overflow: hidden;
+  overscroll-behavior: none;
+  transition:
+    background-color var(--nq-dur-slow) var(--nq-ease),
+    color var(--nq-dur-slow) var(--nq-ease);
+}
+
+/* ---------------------------------------------------------------- *
+ * type
+ * ---------------------------------------------------------------- */
+
+.nq-display {
+  font-family: var(--nq-font-display);
+  font-weight: var(--nq-display-weight, 600);
+  letter-spacing: var(--nq-display-tracking, 0);
+}
+
+.nq-numeric {
+  font-family: var(--nq-font-numeric);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* ---------------------------------------------------------------- *
+ * surfaces
+ * ---------------------------------------------------------------- */
+
+.nq-panel {
+  background: var(--nq-surface);
+  border: 1px solid var(--nq-border);
+  border-radius: var(--nq-radius);
+  backdrop-filter: var(--nq-glass);
+  -webkit-backdrop-filter: var(--nq-glass);
+}
+
+.nq-panel-solid {
+  background: var(--nq-surface-alt);
+  border: 1px solid var(--nq-border);
+  border-radius: var(--nq-radius);
+}
+
+.nq-divider {
+  border-color: var(--nq-border);
+}
+
+/* ---------------------------------------------------------------- *
+ * focus — visible in every theme, including high contrast
+ * ---------------------------------------------------------------- */
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 3px solid var(--nq-accent);
+  outline-offset: 2px;
+  border-radius: var(--nq-radius-sm);
+}
+
+.nq-focus-ring:focus-visible {
+  outline: 3px solid var(--nq-accent);
+  outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------- *
+ * screen-reader utilities
+ * ---------------------------------------------------------------- */
+
+.nq-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.nq-skip-link {
+  position: absolute;
+  inset-inline-start: 50%;
+  top: 0;
+  translate: -50% -120%;
+  z-index: 100;
+  padding: 0.6rem 1.1rem;
+  background: var(--nq-surface-alt);
+  border: 1px solid var(--nq-accent);
+  border-radius: 0 0 var(--nq-radius-sm) var(--nq-radius-sm);
+  transition: translate var(--nq-dur) var(--nq-ease);
+}
+
+.nq-skip-link:focus {
+  translate: -50% 0;
+}
+
+/* ---------------------------------------------------------------- *
+ * board
+ * ---------------------------------------------------------------- */
+
+.nq-board {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.nq-edge-hit {
+  cursor: pointer;
+  fill: transparent;
+}
+
+@media (hover: hover) {
+  .nq-edge-hit:hover + .nq-edge-ghost {
+    opacity: 0.55;
+  }
+}
+
+.nq-edge-ghost {
+  opacity: 0;
+  transition: opacity var(--nq-dur-fast) var(--nq-ease);
+  pointer-events: none;
+}
+
+.nq-edge-ghost[data-focused='true'] {
+  opacity: 0.75;
+}
+
+/* Dots breathe very slightly — enough to feel alive, not enough to distract. */
+@keyframes nq-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.nq-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nq-breathe 5.5s var(--nq-ease) infinite;
+}
+
+/* ---------------------------------------------------------------- *
+ * scrollbars
+ * ---------------------------------------------------------------- */
+
+.nq-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--nq-border) transparent;
+  overscroll-behavior: contain;
+}
+
+.nq-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.nq-scroll::-webkit-scrollbar-thumb {
+  background: var(--nq-border);
+  border-radius: 99px;
+}
+
+/* ---------------------------------------------------------------- *
+ * reduced motion — the CSS half; the JS half lives in tokens.ts
+ * ---------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html[data-reduced-motion='true'] .nq-dot {
+  animation: none;
+}
+
+/* ---------------------------------------------------------------- *
+ * layout helpers
+ * ---------------------------------------------------------------- */
+
+.nq-app {
+  height: 100dvh;
+  padding-top: var(--nq-safe-top);
+  padding-bottom: var(--nq-safe-bottom);
+}
+
+.nq-stage {
+  position: relative;
+  isolation: isolate;
+}
+
+.nq-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}

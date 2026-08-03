@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Noqat">
+  <rect width="64" height="64" rx="14" fill="#0b1a2b"/>
+  <g stroke-linecap="round" stroke-width="6" fill="none">
+    <path d="M18 18h28" stroke="#2ec4b6"/>
+    <path d="M46 18v28" stroke="#e0b354"/>
+    <path d="M46 46H18" stroke="#2ec4b6"/>
+    <path d="M18 46V18" stroke="#ffffff" stroke-opacity=".18" stroke-dasharray="4 7"/>
+  </g>
+  <g fill="#e8d9a8">
+    <circle cx="18" cy="18" r="6"/>
+    <circle cx="46" cy="18" r="6"/>
+    <circle cx="18" cy="46" r="6"/>
+    <circle cx="46" cy="46" r="6"/>
+  </g>
+</svg>
