@@ -102,3 +102,33 @@ dist
 
 # TernJS port file
 .tern-port
+
+# Vite: local cache and the dev-mode service worker from vite-plugin-pwa
+.vite/
+dev-dist/
+
+# Playwright artefacts, reports and browser cache
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Local environment overrides (Vite loads these on top of .env)
+.env.local
+.env.*.local
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.sw?
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS cruft
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
