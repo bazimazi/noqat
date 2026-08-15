@@ -4,6 +4,7 @@
  * Each one is a hook with a single job, mounted by `GameScreen`:
  *   useAiTurn      drives the computer opponent
  *   useGameClock   runs timers and flags on time
+ *   useReplayPlayback  walks the cursor through a finished game
  *   useAutosave    keeps the game recoverable across reloads and crashes
  *   useGameAudio   ties sound and the adaptive soundtrack to game events
  *   useCommentary  narrates the game for screen readers
@@ -140,6 +141,37 @@ export function useGameClock(): void {
 }
 
 /* ------------------------------------------------------------------ *
+ * replay playback
+ * ------------------------------------------------------------------ */
+
+/**
+ * How long a replayed move holds the screen before the next one lands. Long
+ * enough for the line to finish drawing and a capture to bloom, short enough
+ * that a forty-move game does not outstay its welcome.
+ */
+const REPLAY_STEP_MS = 620
+/** Nothing is being animated, so there is no draw to wait for. */
+const REPLAY_STEP_REDUCED_MS = 260
+
+export function useReplayPlayback(): void {
+  const replaying = useGame((s) => s.replaying)
+  const cursor = useGame((s) => s.cursor)
+  const { animationSpeed, reducedMotion } = useSettings((s) => s.a11y)
+
+  useEffect(() => {
+    if (!replaying) return
+    const game = useGame.getState()
+    if (cursor >= game.positions.length - 1) {
+      game.setReplaying(false)
+      return
+    }
+    const step = reducedMotion ? REPLAY_STEP_REDUCED_MS : REPLAY_STEP_MS / Math.max(0.25, animationSpeed)
+    const timer = setTimeout(() => useGame.getState().advanceReplay(), step)
+    return () => clearTimeout(timer)
+  }, [replaying, cursor, animationSpeed, reducedMotion])
+}
+
+/* ------------------------------------------------------------------ *
  * online
  * ------------------------------------------------------------------ */
 
@@ -213,6 +245,9 @@ export function useAutosave(): void {
       pendingSince = 0
       const state = useGame.getState()
       if (state.status === 'idle' || state.mode === 'online') return
+      // Scrubbing and replaying move the cursor, not the game. Saving on every
+      // step would write the same game to disk once per replayed move.
+      if (!selectIsLive(state)) return
       const position = selectLivePosition(state)
       void putSave({
         id: AUTOSAVE_ID,

@@ -8,7 +8,7 @@
  */
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Button, IconButton } from '../../components/ui.tsx'
+import { BackIcon, Button, IconButton } from '../../components/ui.tsx'
 import { useI18n } from '../../i18n/index.tsx'
 import { useUi } from '../../state/uiStore.ts'
 import { useSettings } from '../../state/settingsStore.ts'
@@ -32,7 +32,7 @@ export function ThemeGallery() {
     <div className="nq-scroll h-full p-4 sm:p-6">
       <header className="mb-4 flex items-center gap-2">
         <IconButton label={t('common.back')} onClick={() => go('menu')}>
-          <span aria-hidden="true">‹</span>
+          <BackIcon />
         </IconButton>
         <h1 className="nq-display text-xl">{t('themes.title')}</h1>
       </header>

@@ -7,7 +7,7 @@
  * there is no Apply button and no way to lose a change.
  */
 import { useEffect, useState } from 'react'
-import { Button, IconButton, Modal, Panel, Segmented, Slider, Toggle } from '../../components/ui.tsx'
+import { BackIcon, Button, IconButton, Modal, Panel, Segmented, Select, Slider, Toggle } from '../../components/ui.tsx'
 import { useI18n } from '../../i18n/index.tsx'
 import { LOCALES, LOCALE_META } from '../../i18n/locales.ts'
 import { useUi } from '../../state/uiStore.ts'
@@ -40,7 +40,7 @@ export function SettingsScreen() {
     <div className="nq-scroll h-full p-4 sm:p-6">
       <header className="mb-4 flex items-center gap-2">
         <IconButton label={t('common.back')} onClick={() => back()}>
-          <span aria-hidden="true">‹</span>
+          <BackIcon />
         </IconButton>
         <h1 className="nq-display text-xl">{t('settings.title')}</h1>
       </header>
@@ -54,15 +54,9 @@ export function SettingsScreen() {
           <label className="mb-1 block text-sm font-medium" htmlFor="locale-select">
             {t('settings.language')}
           </label>
-          <select
+          <Select
             id="locale-select"
-            className="nq-focus-ring mb-3 min-h-11 w-full px-3"
-            style={{
-              background: 'var(--nq-surface-alt)',
-              color: 'var(--nq-text)',
-              border: '1px solid var(--nq-border)',
-              borderRadius: 'var(--nq-radius-sm)',
-            }}
+            className="mb-3"
             value={locale}
             onChange={(event) => {
               const next = event.target.value as (typeof LOCALES)[number]
@@ -75,7 +69,7 @@ export function SettingsScreen() {
                 {LOCALE_META[code].flag} {LOCALE_META[code].nativeName} — {LOCALE_META[code].englishName}
               </option>
             ))}
-          </select>
+          </Select>
 
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm font-medium">{t('settings.theme')}</span>
@@ -177,6 +171,12 @@ export function SettingsScreen() {
             label={t('game.chainWarning')}
             checked={settings.showChainWarnings}
             onChange={(showChainWarnings) => settings.patch({ showChainWarnings })}
+          />
+          <Toggle
+            label={t('settings.keyboardHints')}
+            description={t('a11y.keyboardHelp')}
+            checked={settings.showKeyboardHints}
+            onChange={(showKeyboardHints) => settings.patch({ showKeyboardHints })}
           />
 
           <div className="mt-3">

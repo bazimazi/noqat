@@ -16,6 +16,7 @@ import {
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
+  type SelectHTMLAttributes,
 } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import clsx from 'clsx'
@@ -61,7 +62,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       whileHover={{ y: -1 }}
       transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
       className={clsx(
-        'nq-focus-ring inline-flex items-center justify-center border font-medium select-none',
+        'nq-focus-ring inline-flex cursor-pointer items-center justify-center border font-medium select-none',
         'disabled:pointer-events-none disabled:opacity-45',
         SIZES[size],
         block && 'w-full',
@@ -92,11 +93,29 @@ export function IconButton({
       aria-label={label}
       title={label}
       variant="ghost"
-      className={clsx('aspect-square !px-0 min-w-11', className)}
+      className={clsx('h-11 w-11 shrink-0 !px-0 [&>svg]:size-6', className)}
       {...rest}
     >
       {children}
     </Button>
+  )
+}
+
+/** Header back chevron. Flips in RTL so it still points toward the start. */
+export function BackIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      aria-hidden="true"
+      className="rtl:-scale-x-100"
+    >
+      <path d="M15 5 8 12l7 7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }
 
@@ -233,6 +252,59 @@ export function Segmented<T extends string>({
 }
 
 /* ------------------------------------------------------------------ *
+ * Select
+ * ------------------------------------------------------------------ */
+
+/**
+ * A native select with our own chevron.
+ *
+ * The browser's built-in arrow is parked a couple of pixels off the border and
+ * ignores the element's padding, so it always looks cramped and the option text
+ * can slide underneath it. Suppressing it costs nothing — the popup, the
+ * keyboard behaviour and the mobile wheel are all still the platform's.
+ */
+export function Select({
+  className,
+  children,
+  ...rest
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <div className={clsx('relative', className)}>
+      <select
+        className="nq-focus-ring min-h-11 w-full cursor-pointer appearance-none ps-3 pe-10"
+        style={{
+          WebkitAppearance: 'none',
+          background: 'var(--nq-surface-alt)',
+          color: 'var(--nq-text)',
+          border: '1px solid var(--nq-border)',
+          borderRadius: 'var(--nq-radius-sm)',
+        }}
+        {...rest}
+      >
+        {children}
+      </select>
+      {/* The viewBox hugs the stroke, so `end-3` is the gap you actually see —
+          the usual 24-unit icon box would hide 4px of slack inside it. */}
+      <svg
+        viewBox="0 0 12 9"
+        width="12"
+        height="9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2"
+        style={{ color: 'var(--nq-text-muted)' }}
+        aria-hidden="true"
+      >
+        <path d="M1 3l5 5 5-5" />
+      </svg>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ *
  * Toggle
  * ------------------------------------------------------------------ */
 
@@ -262,19 +334,22 @@ export function Toggle({
         id={id}
         role="switch"
         type="button"
+        dir="ltr"
         aria-checked={checked}
         aria-label={label}
         onClick={() => onChange(!checked)}
-        className="nq-focus-ring relative h-7 w-12 shrink-0 rounded-full border transition-colors"
+        className="nq-focus-ring relative inline-flex h-7 w-12 shrink-0 items-center overflow-hidden rounded-full border p-[3px] transition-colors"
         style={{
           background: checked ? 'var(--nq-accent)' : 'var(--nq-surface-alt)',
           borderColor: 'var(--nq-border)',
         }}
       >
+        {/* Motion can't interpolate insetInlineStart, so the thumb is translated on x. dir=ltr keeps off=left in RTL. */}
         <motion.span
-          className="absolute top-0.5 h-5 w-5 rounded-full"
+          className="block size-5 rounded-full"
           style={{ background: checked ? 'var(--nq-bg)' : 'var(--nq-text-muted)' }}
-          animate={{ insetInlineStart: checked ? 26 : 3 }}
+          initial={false}
+          animate={{ x: checked ? '100%' : 0 }}
           transition={{ type: 'spring', stiffness: 500, damping: 32 }}
         />
       </button>

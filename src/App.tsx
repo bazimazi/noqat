@@ -85,7 +85,7 @@ export default function App() {
           // this player's XP or statistics.
           resultRecorded: true,
         })
-        useGame.getState().scrub(0)
+        useGame.getState().watchReplay()
         go('game')
       } catch {
         /* a corrupted link should not break the app */

@@ -29,6 +29,12 @@ export interface SettingsState {
   confirmMoves: boolean
   showCoordinates: boolean
   showChainWarnings: boolean
+  /**
+   * Keep the board's keyboard cursor visible at all times. Off by default: the
+   * board still reveals it the moment someone actually navigates by key, so
+   * pointer players never see a marker they did not ask for.
+   */
+  showKeyboardHints: boolean
   lastBoardSize: BoardSize
   lastDifficulty: Difficulty
   playerName: string
@@ -63,6 +69,7 @@ const DEFAULTS = {
   confirmMoves: false,
   showCoordinates: false,
   showChainWarnings: true,
+  showKeyboardHints: false,
   lastBoardSize: { rows: 5, cols: 5 },
   lastDifficulty: 'medium' as Difficulty,
   playerName: '',

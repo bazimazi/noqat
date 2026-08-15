@@ -234,7 +234,18 @@ export function ResultScreen({ onBurst }: ResultScreenProps) {
                   : '—'
               }
             />
-            <Stat label={t('profile.xp')} value={xpAwarded === null ? '…' : t('result.xpEarned', { n: xpAwarded })} />
+            <Stat
+              label={t('profile.xp')}
+              value={
+                xpAwarded !== null
+                  ? t('result.xpEarned', { n: xpAwarded })
+                  : // Already settled on an earlier visit — coming back from the
+                    // replay must not look like the payout is still pending.
+                    game.resultRecorded
+                    ? '—'
+                    : '…'
+              }
+            />
           </div>
         </Panel>
 
@@ -249,7 +260,7 @@ export function ResultScreen({ onBurst }: ResultScreenProps) {
             <Button
               block
               onClick={() => {
-                useGame.getState().scrub(0)
+                useGame.getState().watchReplay()
                 go('game')
               }}
             >

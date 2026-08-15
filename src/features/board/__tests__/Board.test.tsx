@@ -61,6 +61,14 @@ describe('Board rendering', () => {
     expect(screen.getAllByRole('button')).toHaveLength(11)
   })
 
+  it('gives the glow filter a user-space region', () => {
+    // A straight line has a zero-area bounding box, so the default
+    // bounding-box region would collapse and the glowing last move would not
+    // be painted at all.
+    const { container } = setup()
+    expect(container.querySelector('#nq-glow')).toHaveAttribute('filterUnits', 'userSpaceOnUse')
+  })
+
   it('renders captured boxes with the owning player’s motif', () => {
     let position = createPosition(size)
     for (const edge of [hEdge(size, 0, 0), hEdge(size, 1, 0), vEdge(size, 0, 0), vEdge(size, 0, 1)]) {
@@ -132,6 +140,33 @@ describe('Board interaction', () => {
     await waitFor(() =>
       expect(board).toHaveAttribute('aria-activedescendant', `nq-edge-${vEdge(size, 1, 0)}`),
     )
+  })
+
+  it('keeps the keyboard cursor out of sight until a key is used', async () => {
+    const user = userEvent.setup()
+    setup()
+    await user.click(screen.getAllByRole('button')[3])
+    expect(screen.queryByTestId('edge-cursor')).not.toBeInTheDocument()
+    const board = screen.getByRole('application')
+    board.focus()
+    await user.keyboard('{ArrowRight}')
+    await waitFor(() => expect(screen.getByTestId('edge-cursor')).toBeInTheDocument())
+  })
+
+  it('shows the keyboard cursor from the start when the setting asks for it', async () => {
+    setup({ showKeyboardHints: true })
+    screen.getByRole('application').focus()
+    await waitFor(() => expect(screen.getByTestId('edge-cursor')).toBeInTheDocument())
+  })
+
+  it('previews only the edge the player is pointing at', async () => {
+    const user = userEvent.setup()
+    const { container } = setup()
+    await user.click(screen.getAllByRole('button')[3])
+    await user.unhover(screen.getByRole('application'))
+    // Clicking leaves the keyboard cursor on that edge. With the pointer gone
+    // and the cursor hidden, nothing should still look about to be played.
+    expect(container.querySelectorAll('.nq-edge-ghost[data-focused="true"]')).toHaveLength(0)
   })
 
   it('does not fall off the edge of the board', async () => {

@@ -6,7 +6,7 @@
  * these are twenty lines each and stay perfectly on-theme.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { IconButton, Panel, Stat } from '../../components/ui.tsx'
+import { BackIcon, IconButton, Panel, Stat } from '../../components/ui.tsx'
 import { useI18n } from '../../i18n/index.tsx'
 import { formatDuration, formatPercent } from '../../i18n/format.ts'
 import { useUi } from '../../state/uiStore.ts'
@@ -44,7 +44,7 @@ export function StatsScreen() {
     <div className="nq-scroll h-full p-4 sm:p-6">
       <header className="mb-4 flex items-center gap-2">
         <IconButton label={t('common.back')} onClick={() => back()}>
-          <span aria-hidden="true">‹</span>
+          <BackIcon />
         </IconButton>
         <h1 className="nq-display text-xl">{t('stats.title')}</h1>
       </header>

@@ -37,6 +37,8 @@ export interface BoardProps {
   /** Warn before a move that opens a chain. */
   readonly warnLoony?: boolean
   readonly showCoordinates?: boolean
+  /** Keep the keyboard cursor on screen even while playing with a pointer. */
+  readonly showKeyboardHints?: boolean
   readonly playerNames: readonly string[]
   readonly onHoverEdge?: (edge: number | null) => void
 }
@@ -54,6 +56,7 @@ export const Board = memo(function Board({
   lastEdge = null,
   warnLoony = false,
   showCoordinates = false,
+  showKeyboardHints = false,
   playerNames,
   onHoverEdge,
 }: BoardProps) {
@@ -63,6 +66,10 @@ export const Board = memo(function Board({
 
   const [focusEdge, setFocusEdge] = useState<number | null>(null)
   const [hoverEdge, setHoverEdge] = useState<number | null>(null)
+  // The keyboard cursor exists whether or not it is drawn — assistive
+  // technology follows it through aria-activedescendant regardless. This only
+  // tracks whether it is worth showing: the last input was a key, not a tap.
+  const [keyboardNav, setKeyboardNav] = useState(false)
 
   const deg = useMemo(() => degrees(position), [position])
   const reduced = a11y.reducedMotion
@@ -107,6 +114,7 @@ export const Board = memo(function Board({
       const direction = arrows[event.key]
       if (direction) {
         event.preventDefault()
+        setKeyboardNav(true)
         const from = focusEdge ?? firstFreeEdge(position)
         if (from === null) return
         const next = stepEdge(size, from, direction, dir === 'rtl')
@@ -120,21 +128,33 @@ export const Board = memo(function Board({
       }
       if (event.key === 'Home') {
         event.preventDefault()
+        setKeyboardNav(true)
         setFocusEdge(firstFreeEdge(position))
       }
     },
     [focusEdge, position, size, dir, play],
   )
 
+  // A pointer press never moves focus (the hit strips preventDefault), so a
+  // focus event is keyboard entry — unless a tap on the bare plate caused it,
+  // which the timestamp rules out.
+  const pointerAt = useRef(0)
+  const onPointerDown = useCallback(() => {
+    pointerAt.current = Date.now()
+    setKeyboardNav(false)
+  }, [])
+
   const onFocus = useCallback(() => {
+    if (Date.now() - pointerAt.current > 300) setKeyboardNav(true)
     setFocusEdge((current) => current ?? firstFreeEdge(position))
   }, [position])
 
   const activeEdge = focusEdge
-  const previewEdge = hoverEdge ?? focusEdge
+  const hintsVisible = showKeyboardHints || keyboardNav
+  const previewEdge = hoverEdge ?? (hintsVisible ? focusEdge : null)
 
   const focusRing = useMemo(() => {
-    if (activeEdge === null) return null
+    if (activeEdge === null || !hintsVisible) return null
     const edge = layout.edges[activeEdge]
     if (!edge || position.edges[activeEdge] !== 0) return null
     const horizontal = edge.orientation === 'h'
@@ -144,7 +164,7 @@ export const Board = memo(function Board({
       w: horizontal ? 0.96 : 0.28,
       h: horizontal ? 0.28 : 0.96,
     }
-  }, [activeEdge, layout, position])
+  }, [activeEdge, hintsVisible, layout, position])
 
   return (
     <svg
@@ -158,12 +178,27 @@ export const Board = memo(function Board({
       tabIndex={interactive ? 0 : -1}
       onKeyDown={onKeyDown}
       onFocus={onFocus}
-      onBlur={() => setFocusEdge(null)}
+      onBlur={() => {
+        setFocusEdge(null)
+        setKeyboardNav(false)
+      }}
+      onPointerDown={onPointerDown}
       onPointerLeave={() => setHover(null)}
       data-testid="board"
     >
       <defs>
-        <filter id="nq-glow" x="-60%" y="-60%" width="220%" height="220%">
+        {/* The region has to be given in user space. A straight <line> has a
+            zero-area bounding box, so the default percentage-of-bounding-box
+            region collapses to nothing and the browser drops the element
+            entirely — the glowing last move would simply vanish. */}
+        <filter
+          id="nq-glow"
+          filterUnits="userSpaceOnUse"
+          x={-layout.padding}
+          y={-layout.padding}
+          width={size.cols + layout.padding * 2}
+          height={size.rows + layout.padding * 2}
+        >
           <feGaussianBlur stdDeviation="0.045" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
@@ -320,7 +355,9 @@ export const Board = memo(function Board({
       <g>
         {layout.edges.map((edge) => {
           if (position.edges[edge.id] !== 0) return null
-          const focused = edge.id === activeEdge
+          // Only `previewEdge` decides this: it already folds in the keyboard
+          // cursor when the cursor is on show. Keying off the focused edge as
+          // well would paint a line on an edge nobody pointed at.
           const previewing = edge.id === previewEdge
           const loony = warnLoony && isLoonyEdge(edge.id, deg, size)
           const capturing = capturesFor(position, edge.id, deg) > 0
@@ -349,7 +386,7 @@ export const Board = memo(function Board({
               />
               <line
                 className="nq-edge-ghost"
-                data-focused={focused || previewing ? 'true' : 'false'}
+                data-focused={previewing ? 'true' : 'false'}
                 x1={edge.x1}
                 y1={edge.y1}
                 x2={edge.x2}
@@ -373,18 +410,22 @@ export const Board = memo(function Board({
       {/* keyboard focus ring — one persistent node that slides between edges.
           A `layoutId` would be the obvious way to do this, but a shared-layout
           node keeps its projection alive past unmount and deadlocks the
-          screen-level AnimatePresence the board lives inside. */}
+          screen-level AnimatePresence the board lives inside.
+          Thin and half-lit, so it reads as a cursor rather than a highlight —
+          except under high contrast, where it has to hold its own. */}
       {focusRing && (
         <motion.rect
           rx={0.1}
           fill="none"
           stroke="var(--nq-accent)"
-          strokeWidth={0.035}
+          strokeWidth={a11y.highContrast ? 0.035 : 0.018}
+          opacity={a11y.highContrast ? 1 : 0.5}
           initial={false}
           animate={{ x: focusRing.x, y: focusRing.y, width: focusRing.w, height: focusRing.h }}
           transition={reduced ? { duration: 0 } : SPRING}
           pointerEvents="none"
           aria-hidden="true"
+          data-testid="edge-cursor"
         />
       )}
 

@@ -7,7 +7,7 @@
  */
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Badge, Button, IconButton, Panel } from '../../components/ui.tsx'
+import { BackIcon, Badge, Button, IconButton, Panel } from '../../components/ui.tsx'
 import { useI18n } from '../../i18n/index.tsx'
 import { useUi } from '../../state/uiStore.ts'
 import { useSettings } from '../../state/settingsStore.ts'
@@ -49,7 +49,7 @@ export function PuzzlesScreen() {
     <div className="nq-scroll h-full p-4 sm:p-6">
       <header className="mb-4 flex items-center gap-2">
         <IconButton label={t('common.back')} onClick={() => back()}>
-          <span aria-hidden="true">‹</span>
+          <BackIcon />
         </IconButton>
         <h1 className="nq-display flex-1 text-xl">{t('menu.puzzles')}</h1>
         <Button size="sm" onClick={() => setPage((p) => p + 1)}>
@@ -133,7 +133,7 @@ export function CampaignScreen() {
     <div className="nq-scroll h-full p-4 sm:p-6">
       <header className="mb-4 flex items-center gap-2">
         <IconButton label={t('common.back')} onClick={() => back()}>
-          <span aria-hidden="true">‹</span>
+          <BackIcon />
         </IconButton>
         <h1 className="nq-display text-xl">{t('menu.campaign')}</h1>
       </header>
@@ -212,7 +212,7 @@ export function TrainerScreen() {
     <div className="nq-scroll h-full p-4 sm:p-6">
       <header className="mb-2 flex items-center gap-2">
         <IconButton label={t('common.back')} onClick={() => back()}>
-          <span aria-hidden="true">‹</span>
+          <BackIcon />
         </IconButton>
         <h1 className="nq-display text-xl">{t('menu.trainer')}</h1>
       </header>

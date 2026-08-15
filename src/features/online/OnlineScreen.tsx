@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Badge, Button, IconButton, Panel } from '../../components/ui.tsx'
+import { BackIcon, Badge, Button, IconButton, Panel } from '../../components/ui.tsx'
 import { useI18n } from '../../i18n/index.tsx'
 import { useUi } from '../../state/uiStore.ts'
 import { useSettings } from '../../state/settingsStore.ts'
@@ -138,7 +138,7 @@ export function OnlineScreen() {
     <div className="nq-scroll h-full p-4 sm:p-6">
       <header className="mb-4 flex items-center gap-2">
         <IconButton label={t('common.back')} onClick={() => back()}>
-          <span aria-hidden="true">‹</span>
+          <BackIcon />
         </IconButton>
         <h1 className="nq-display flex-1 text-xl">{t('online.title')}</h1>
         <Badge tone={connection === 'open' ? 'accent' : 'neutral'}>

@@ -7,7 +7,7 @@
  * about *giving boxes away*, and that discovery is what makes the game deep.
  */
 import { motion } from 'framer-motion'
-import { IconButton, Panel } from '../../components/ui.tsx'
+import { BackIcon, IconButton, Panel } from '../../components/ui.tsx'
 import { useI18n } from '../../i18n/index.tsx'
 import { useUi } from '../../state/uiStore.ts'
 
@@ -19,7 +19,7 @@ export function HowToScreen() {
     <div className="nq-scroll h-full p-4 sm:p-6">
       <header className="mb-4 flex items-center gap-2">
         <IconButton label={t('common.back')} onClick={() => back()}>
-          <span aria-hidden="true">‹</span>
+          <BackIcon />
         </IconButton>
         <h1 className="nq-display text-xl">{t('howto.title')}</h1>
       </header>

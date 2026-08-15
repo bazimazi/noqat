@@ -90,6 +90,33 @@ describe('game store', () => {
     expect(selectIsLive(useGame.getState())).toBe(true)
   })
 
+  it('plays a replay back from the start and stops at the end', () => {
+    useGame.getState().play(0)
+    useGame.getState().play(1)
+    useGame.getState().watchReplay()
+    expect(useGame.getState().cursor).toBe(0)
+    expect(useGame.getState().replaying).toBe(true)
+
+    useGame.getState().advanceReplay()
+    expect(useGame.getState().cursor).toBe(1)
+    expect(useGame.getState().replaying).toBe(true)
+
+    useGame.getState().advanceReplay()
+    expect(useGame.getState().cursor).toBe(2)
+    // The last position is the live one, so there is nothing left to play.
+    expect(useGame.getState().replaying).toBe(false)
+    expect(selectIsLive(useGame.getState())).toBe(true)
+  })
+
+  it('hands control back to the viewer who scrubs mid-replay', () => {
+    useGame.getState().play(0)
+    useGame.getState().play(1)
+    useGame.getState().watchReplay()
+    useGame.getState().scrub(1)
+    expect(useGame.getState().replaying).toBe(false)
+    expect(useGame.getState().cursor).toBe(1)
+  })
+
   it('clamps scrubbing to the available range', () => {
     useGame.getState().play(0)
     useGame.getState().scrub(-5)

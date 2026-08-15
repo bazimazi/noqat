@@ -171,6 +171,51 @@ describe('playing a game', () => {
   })
 })
 
+describe('watching a replay', () => {
+  async function playToTheEnd() {
+    useGame.getState().start({
+      size: { rows: 2, cols: 2 },
+      players: [
+        { kind: 'human', name: 'A' },
+        { kind: 'human', name: 'B' },
+      ],
+    })
+    useUi.setState({ screen: 'game' })
+    renderApp()
+    await screen.findByTestId('board')
+
+    let guard = 0
+    while (useGame.getState().status === 'playing' && guard++ < 40) {
+      useGame.getState().play(legalMoves(selectLivePosition(useGame.getState()))[0])
+    }
+    await screen.findByRole('heading', { name: /victory|defeat|draw/i }, { timeout: 4000 })
+  }
+
+  it('rewinds and starts playing back', async () => {
+    const user = userEvent.setup()
+    await playToTheEnd()
+
+    await user.click(screen.getByRole('button', { name: /watch replay/i }))
+    await screen.findByTestId('board')
+    expect(useGame.getState().cursor).toBe(0)
+    expect(useGame.getState().replaying).toBe(true)
+  })
+
+  it('leaves through the back button to the result panel, not the quit prompt', async () => {
+    const user = userEvent.setup()
+    await playToTheEnd()
+    await user.click(screen.getByRole('button', { name: /watch replay/i }))
+    await screen.findByTestId('board')
+
+    await user.click(screen.getByRole('button', { name: /^back$/i }))
+    expect(
+      await screen.findByRole('heading', { name: /victory|defeat|draw/i }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /^quit$/i })).not.toBeInTheDocument()
+    expect(useGame.getState().replaying).toBe(false)
+  })
+})
+
 describe('localisation in the running app', () => {
   it('renders Persian copy and Eastern Arabic numerals', async () => {
     renderApp('fa')

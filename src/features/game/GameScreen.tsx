@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Board } from '../board/Board.tsx'
 import { MoveHistory, PlayerCard } from './Hud.tsx'
-import { Button, IconButton, Modal } from '../../components/ui.tsx'
+import { BackIcon, Button, IconButton, Modal } from '../../components/ui.tsx'
 import { useI18n } from '../../i18n/index.tsx'
 import { getTheme } from '../../themes/registry.ts'
 import { useSettings } from '../../state/settingsStore.ts'
@@ -24,7 +24,15 @@ import {
   selectVisiblePosition,
   useGame,
 } from '../../state/gameStore.ts'
-import { useAiTurn, useAutosave, useCommentary, useGameAudio, useGameClock, useOnlineSync } from './controllers.ts'
+import {
+  useAiTurn,
+  useAutosave,
+  useCommentary,
+  useGameAudio,
+  useGameClock,
+  useOnlineSync,
+  useReplayPlayback,
+} from './controllers.ts'
 import { closeOnlineSession } from '../../online/session.ts'
 import { getAiClient } from '../../ai/client.ts'
 import { getAudioEngine } from '../../audio/engine.ts'
@@ -38,6 +46,7 @@ export function GameScreen() {
   const confirmMoves = useSettings((s) => s.confirmMoves)
   const showCoordinates = useSettings((s) => s.showCoordinates)
   const showChainWarnings = useSettings((s) => s.showChainWarnings)
+  const showKeyboardHints = useSettings((s) => s.showKeyboardHints)
   const haptics = useSettings((s) => s.haptics)
 
   const theme = useMemo(() => getTheme(themeId), [themeId])
@@ -53,6 +62,7 @@ export function GameScreen() {
 
   useAiTurn()
   useGameClock()
+  useReplayPlayback()
   useAutosave()
   useGameAudio()
   useCommentary()
@@ -84,6 +94,35 @@ export function GameScreen() {
     [confirmMoves, commit],
   )
 
+  // A finished game has no clock to pause, so the transport control drives the
+  // replay instead: play walks the timeline, pause holds it where it is.
+  const isReplay = game.status === 'finished' && game.moves.length > 0
+  const transportPlaying = isReplay ? game.replaying : game.status === 'playing'
+
+  // A finished game is being watched, not played: there is nothing to abandon,
+  // so leaving means going back to that game's result panel.
+  const onBack = useCallback(() => {
+    const state = useGame.getState()
+    if (state.status !== 'finished') {
+      setShowQuit(true)
+      return
+    }
+    state.goLive()
+    go('result')
+  }, [go])
+
+  const toggleTransport = useCallback(() => {
+    const state = useGame.getState()
+    if (state.status === 'finished' && state.moves.length > 0) {
+      if (state.replaying) state.setReplaying(false)
+      else if (selectIsLive(state)) state.watchReplay()
+      else state.setReplaying(true)
+      return
+    }
+    if (state.status === 'paused') state.resume()
+    else state.pause()
+  }, [])
+
   const onHint = useCallback(() => {
     void getAudioEngine().unlock()
     void getAiClient()
@@ -106,25 +145,28 @@ export function GameScreen() {
           onHint()
           break
         case 'p':
-          if (useGame.getState().status === 'playing') useGame.getState().pause()
-          else useGame.getState().resume()
+          toggleTransport()
           break
         case 'escape':
-          setShowQuit(true)
+          onBack()
           break
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onHint])
+  }, [onBack, onHint, toggleTransport])
 
   // In pass-and-play every seat is human, so no single one of them is "you".
   const localSeat = game.players.some((p) => p.kind !== 'human')
     ? game.players.findIndex((p) => p.kind === 'human')
     : -1
 
-  const boxesLeft = live.boxes.reduce((count, owner) => (owner < 0 ? count + 1 : count), 0)
-  const canUndo = game.moves.length > 0 && game.mode !== 'online' && game.mode !== 'daily'
+  // Counters follow what is on screen, so they count up again during a replay
+  // rather than sitting on the final tally.
+  const boxesLeft = visible.boxes.reduce((count, owner) => (owner < 0 ? count + 1 : count), 0)
+  // Undo rewrites the timeline, which is not something to offer someone who is
+  // in the middle of watching it.
+  const canUndo = isLive && game.moves.length > 0 && game.mode !== 'online' && game.mode !== 'daily'
 
   return (
     <div className="flex h-full flex-col gap-2 p-3 sm:p-4">
@@ -133,18 +175,18 @@ export function GameScreen() {
       </a>
 
       <header className="flex items-center gap-2">
-        <IconButton label={t('common.back')} onClick={() => setShowQuit(true)}>
+        <IconButton label={t('common.back')} onClick={onBack}>
           <BackIcon />
         </IconButton>
         <div className="flex-1 text-center text-xs" style={{ color: 'var(--nq-text-muted)' }}>
-          {t('game.boxesLeft', { n: boxesLeft })} · {n(remainingEdges(live))} ⁄{' '}
-          {n(live.edges.length)}
+          {t('game.boxesLeft', { n: boxesLeft })} · {n(remainingEdges(visible))} ⁄{' '}
+          {n(visible.edges.length)}
         </div>
         <IconButton
-          label={game.status === 'paused' ? t('common.resume') : t('game.pause')}
-          onClick={() => (game.status === 'paused' ? game.resume() : game.pause())}
+          label={transportPlaying ? t('game.pause') : isReplay ? t('game.replayPlay') : t('common.resume')}
+          onClick={toggleTransport}
         >
-          {game.status === 'paused' ? <PlayIcon /> : <PauseIcon />}
+          {transportPlaying ? <PauseIcon /> : <PlayIcon />}
         </IconButton>
         <IconButton label={t('common.settings')} onClick={() => go('settings')}>
           <GearIcon />
@@ -158,7 +200,7 @@ export function GameScreen() {
               <PlayerCard
                 player={player}
                 index={index}
-                score={live.scores[index] ?? 0}
+                score={visible.scores[index] ?? 0}
                 active={index === current && game.status === 'playing'}
                 thinking={game.thinking && index === current}
                 clockMs={game.clocks[index] ?? Number.POSITIVE_INFINITY}
@@ -180,9 +222,10 @@ export function GameScreen() {
               onPlay={humanTurn ? onPlay : null}
               interactive={humanTurn}
               hintEdge={game.hintEdge}
-              lastEdge={game.moves.length ? game.moves[game.moves.length - 1].edge : null}
+              lastEdge={game.cursor > 0 ? game.moves[game.cursor - 1].edge : null}
               warnLoony={showChainWarnings && humanTurn}
               showCoordinates={showCoordinates}
+              showKeyboardHints={showKeyboardHints}
               playerNames={game.players.map((p) => p.name)}
             />
           </div>
@@ -195,9 +238,18 @@ export function GameScreen() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
               >
-                <span>{t('game.moveHistory')}</span>
+                <IconButton
+                  size="sm"
+                  label={game.replaying ? t('game.pause') : t('game.replayPlay')}
+                  onClick={() => useGame.getState().setReplaying(!game.replaying)}
+                >
+                  {game.replaying ? <PauseIcon /> : <PlayIcon />}
+                </IconButton>
+                <span className="nq-numeric">
+                  {n(game.cursor)} ⁄ {n(game.moves.length)}
+                </span>
                 <Button size="sm" variant="primary" onClick={() => useGame.getState().goLive()}>
-                  {t('common.resume')}
+                  {t('game.replayEnd')}
                 </Button>
               </motion.div>
             )}
@@ -301,15 +353,6 @@ export function GameScreen() {
 }
 
 /* icons — inline so there is no icon-font or sprite request */
-
-function BackIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M15 5 8 12l7 7" strokeLinecap="round" strokeLinejoin="round" className="rtl:hidden" />
-      <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" className="hidden rtl:block" />
-    </svg>
-  )
-}
 
 function PauseIcon() {
   return (

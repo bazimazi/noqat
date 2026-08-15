@@ -157,6 +157,29 @@ class MockAudioContext {
 vi.stubGlobal('AudioContext', MockAudioContext)
 vi.stubGlobal('webkitAudioContext', MockAudioContext)
 
+// Node 22 defines a `localStorage` global that shadows jsdom's own and stays
+// undefined unless the process was started with --localstorage-file, so the
+// persisted stores would have nothing to write to. Hand them a memory-backed
+// one instead of reaching for a flag that only some runners will pass.
+if (!globalThis.localStorage) {
+  const entries = new Map<string, string>()
+  const memoryStorage: Storage = {
+    get length() {
+      return entries.size
+    },
+    key: (index) => [...entries.keys()][index] ?? null,
+    getItem: (key) => entries.get(key) ?? null,
+    setItem: (key, value) => void entries.set(key, String(value)),
+    removeItem: (key) => void entries.delete(key),
+    clear: () => entries.clear(),
+  }
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: memoryStorage,
+    configurable: true,
+    writable: true,
+  })
+}
+
 // jsdom has no layout, so it has no scrollIntoView.
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function scrollIntoView() {}

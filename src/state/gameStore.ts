@@ -104,6 +104,8 @@ export interface GameStoreState {
   moves: Move[]
   /** Which position is being shown. Equals `positions.length - 1` when live. */
   cursor: number
+  /** True while the replay is walking the cursor forward on its own. */
+  replaying: boolean
 
   status: GameStatus
   startedAt: number
@@ -141,6 +143,11 @@ export interface GameStoreState {
   setHint: (edge: number | null) => void
   scrub: (cursor: number) => void
   goLive: () => void
+  /** Rewinds to the opening position and starts playing the game back. */
+  watchReplay: () => void
+  setReplaying: (replaying: boolean) => void
+  /** One step of playback; stops itself on the last position. */
+  advanceReplay: () => void
   tick: (elapsedMs: number) => void
   announce: (message: string) => void
   reset: () => void
@@ -182,6 +189,7 @@ export const useGame = create<GameStoreState>()((set, get) => ({
   positions: [createPosition({ rows: 5, cols: 5 })],
   moves: [],
   cursor: 0,
+  replaying: false,
   status: 'idle',
   startedAt: 0,
   finishedAt: null,
@@ -221,6 +229,7 @@ export const useGame = create<GameStoreState>()((set, get) => ({
         positions: restored.positions as Position[],
         moves: restored.moves as Move[],
         cursor: restored.positions.length - 1,
+        replaying: false,
         status: isComplete(restored.positions[restored.positions.length - 1]) ? 'finished' : 'playing',
         startedAt: now,
         finishedAt: null,
@@ -249,6 +258,7 @@ export const useGame = create<GameStoreState>()((set, get) => ({
       positions: [createPosition(config.size, rules)],
       moves: [],
       cursor: 0,
+      replaying: false,
       status: 'playing',
       startedAt: now,
       finishedAt: null,
@@ -339,6 +349,7 @@ export const useGame = create<GameStoreState>()((set, get) => ({
       positions,
       moves,
       cursor: positions.length - 1,
+      replaying: false,
       status: 'playing',
       finishedAt: null,
       lastCapture: null,
@@ -371,12 +382,25 @@ export const useGame = create<GameStoreState>()((set, get) => ({
   setThinking: (thinking) => set({ thinking }),
   setHint: (hintEdge) => set({ hintEdge }),
 
+  // Taking hold of the timeline by hand stops the playback: the viewer is
+  // steering now.
   scrub: (cursor) => {
     const { positions } = get()
-    set({ cursor: Math.max(0, Math.min(positions.length - 1, cursor)) })
+    set({ cursor: Math.max(0, Math.min(positions.length - 1, cursor)), replaying: false })
   },
 
-  goLive: () => set((state) => ({ cursor: state.positions.length - 1 })),
+  goLive: () => set((state) => ({ cursor: state.positions.length - 1, replaying: false })),
+
+  watchReplay: () => set({ cursor: 0, replaying: true }),
+
+  setReplaying: (replaying) => set({ replaying }),
+
+  advanceReplay: () =>
+    set((state) => {
+      const last = state.positions.length - 1
+      const cursor = Math.min(last, state.cursor + 1)
+      return { cursor, replaying: cursor < last }
+    }),
 
   /**
    * Advances the clock for whoever is on move. Returns silently when the game
@@ -408,6 +432,7 @@ export const useGame = create<GameStoreState>()((set, get) => ({
       positions: [createPosition({ rows: 5, cols: 5 })],
       moves: [],
       cursor: 0,
+      replaying: false,
       lastCapture: null,
       hintEdge: null,
       resignedBy: null,

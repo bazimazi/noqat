@@ -7,7 +7,7 @@
  */
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Button, IconButton, Panel, Segmented, Slider } from '../../components/ui.tsx'
+import { BackIcon, Button, IconButton, Panel, Segmented, Slider } from '../../components/ui.tsx'
 import { useI18n } from '../../i18n/index.tsx'
 import { useUi } from '../../state/uiStore.ts'
 import { useSettings } from '../../state/settingsStore.ts'
@@ -99,7 +99,7 @@ export function SetupScreen() {
     <div className="nq-scroll flex h-full flex-col gap-4 p-4 sm:p-6">
       <header className="flex items-center gap-2">
         <IconButton label={t('common.back')} onClick={() => go('menu')}>
-          <span aria-hidden="true">‹</span>
+          <BackIcon />
         </IconButton>
         <h1 className="nq-display text-xl">{t('setup.title')}</h1>
       </header>
