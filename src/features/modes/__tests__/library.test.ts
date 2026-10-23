@@ -70,9 +70,9 @@ describe('puzzle generation', () => {
 })
 
 describe('daily challenge', () => {
-  it('is identical for everyone on the same UTC day', () => {
-    const a = dailyChallenge(new Date('2026-05-01T02:00:00Z'))
-    const b = dailyChallenge(new Date('2026-05-01T22:30:00Z'))
+  it('is identical throughout the same local calendar day', () => {
+    const a = dailyChallenge(new Date(2026, 4, 1, 0, 10))
+    const b = dailyChallenge(new Date(2026, 4, 1, 23, 50))
     expect(a).toEqual(b)
   })
 
@@ -121,6 +121,12 @@ describe('campaign', () => {
     expect(starsFor(level, level.stars[0])).toBe(1)
     expect(starsFor(level, level.stars[1])).toBe(2)
     expect(starsFor(level, level.stars[2])).toBe(3)
+  })
+
+  it('rewards fewer boxes in a misère level', () => {
+    const level = CAMPAIGN.find((item) => item.misere)!
+    expect(starsFor(level, 0)).toBe(3)
+    expect(starsFor(level, level.size.rows * level.size.cols)).toBe(0)
   })
 })
 

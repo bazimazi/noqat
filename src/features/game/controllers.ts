@@ -264,6 +264,8 @@ export function useAutosave(): void {
         finished: state.status === 'finished',
         themeId,
         clocks: state.clocks.map((c) => (Number.isFinite(c) ? c : -1)),
+        context: state.context,
+        resultRecorded: state.resultRecorded,
       })
     }
 

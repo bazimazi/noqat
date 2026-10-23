@@ -37,9 +37,13 @@ import { closeOnlineSession } from '../../online/session.ts'
 import { getAiClient } from '../../ai/client.ts'
 import { getAudioEngine } from '../../audio/engine.ts'
 import { remainingEdges } from '../../core/rules.ts'
+import { Coach, CaptureCelebration, MoveTimer } from './PlayFeedback.tsx'
+import { experienceCopy } from '../experience.ts'
+import { getVariantCopy, isVariantMode } from '../modes/variants.ts'
 
 export function GameScreen() {
-  const { t, n } = useI18n()
+  const { t, n, locale } = useI18n()
+  const copy = experienceCopy(locale)
   const go = useUi((s) => s.go)
   const themeId = useSettings((s) => s.themeId)
   const a11y = useSettings((s) => s.a11y)
@@ -59,6 +63,7 @@ export function GameScreen() {
 
   const [pendingEdge, setPendingEdge] = useState<number | null>(null)
   const [showQuit, setShowQuit] = useState(false)
+  const [hoverEdge, setHoverEdge] = useState<number | null>(null)
 
   useAiTurn()
   useGameClock()
@@ -124,10 +129,17 @@ export function GameScreen() {
   }, [])
 
   const onHint = useCallback(() => {
+    const requested = useGame.getState()
+    if (!selectIsHumanTurn(requested) || !selectIsLive(requested)) return
+    const requestedId = requested.id
+    const requestedPly = selectLivePosition(requested).ply
     void getAudioEngine().unlock()
     void getAiClient()
       .hint(live, game.rules, game.seed)
-      .then((response) => useGame.getState().setHint(response.edge))
+      .then((response) => {
+        const now = useGame.getState()
+        if (now.id === requestedId && selectLivePosition(now).ply === requestedPly && selectIsHumanTurn(now)) now.setHint(response.edge)
+      })
       .catch(() => {})
   }, [live, game.rules, game.seed])
 
@@ -135,6 +147,7 @@ export function GameScreen() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (showQuit || pendingEdge !== null) return
       const target = event.target as HTMLElement | null
       if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return
       switch (event.key.toLowerCase()) {
@@ -154,7 +167,7 @@ export function GameScreen() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onBack, onHint, toggleTransport])
+  }, [onBack, onHint, toggleTransport, showQuit, pendingEdge])
 
   // In pass-and-play every seat is human, so no single one of them is "you".
   const localSeat = game.players.some((p) => p.kind !== 'human')
@@ -169,7 +182,7 @@ export function GameScreen() {
   const canUndo = isLive && game.moves.length > 0 && game.mode !== 'online' && game.mode !== 'daily'
 
   return (
-    <div className="flex h-full flex-col gap-2 p-3 sm:p-4">
+    <div className="nq-game-screen flex h-full w-full min-w-0 flex-col gap-2 p-3 sm:p-4">
       <a className="nq-skip-link" href="#nq-board-region">
         {t('a11y.skipToBoard')}
       </a>
@@ -193,10 +206,21 @@ export function GameScreen() {
         </IconButton>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2 landscape:flex-row landscape:items-stretch">
-        <div className="flex gap-2 landscape:w-64 landscape:flex-col landscape:justify-center">
+      <div className="nq-game-ribbon">
+        <div><span className="nq-turn-dot" style={{ background: `var(--nq-p${current}-line)` }} /><strong>{game.players[current]?.name}</strong><span>{copy.turn}</span></div>
+        <span className="nq-mode-label">{isVariantMode(game.mode) ? getVariantCopy(game.mode, locale).name : game.mode === 'online' ? t('menu.online') : t(`mode.${game.mode}` as 'mode.classic')}</span>
+        {game.context.par !== undefined && <span>{copy.challengeTarget}: {n(game.context.par)}</span>}
+        <MoveTimer />
+      </div>
+      {isVariantMode(game.mode) && <p className="nq-rule-note">{getVariantCopy(game.mode, locale).rule}</p>}
+      <div className="nq-board-progress" role="progressbar" aria-label={copy.captured} aria-valuenow={visible.boxes.length - boxesLeft} aria-valuemin={0} aria-valuemax={visible.boxes.length}>
+        {visible.scores.map((score, index) => <div key={index} style={{ width: `${score / visible.boxes.length * 100}%`, background: `var(--nq-p${index}-line)` }} />)}
+      </div>
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 landscape:flex-row landscape:items-stretch">
+        <div data-players={game.players.length} className="nq-player-rail grid min-w-0 grid-cols-2 gap-2 landscape:flex landscape:w-64 landscape:shrink-0 landscape:flex-col landscape:justify-center">
           {game.players.map((player, index) => (
-            <div key={index} className="flex-1">
+            <div key={index} className="min-w-0 flex-1">
               <PlayerCard
                 player={player}
                 index={index}
@@ -212,8 +236,8 @@ export function GameScreen() {
           ))}
         </div>
 
-        <div id="nq-board-region" className="relative grid min-h-0 flex-1 place-items-center">
-          <div className="aspect-square h-full max-h-full w-full max-w-full" style={{ maxWidth: 'min(100%, 88vh)' }}>
+        <div id="nq-board-region" className="relative grid min-h-0 min-w-0 flex-1 place-items-center">
+          <div className="absolute inset-0">
             <Board
               position={visible}
               size={game.size}
@@ -227,8 +251,10 @@ export function GameScreen() {
               showCoordinates={showCoordinates}
               showKeyboardHints={showKeyboardHints}
               playerNames={game.players.map((p) => p.name)}
+              onHoverEdge={setHoverEdge}
             />
           </div>
+          {isLive && <CaptureCelebration />}
 
           <AnimatePresence>
             {!isLive && (
@@ -276,6 +302,7 @@ export function GameScreen() {
         </div>
 
         <aside className="flex shrink-0 flex-col gap-2 landscape:w-64">
+          <Coach edge={humanTurn ? hoverEdge ?? game.hintEdge : null} />
           <div className="flex gap-2">
             <Button size="sm" onClick={() => useGame.getState().undo()} disabled={!canUndo} className="flex-1">
               {t('game.undo')}

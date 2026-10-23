@@ -183,12 +183,16 @@ export function emptyProfile(): ProfileRecord {
     createdAt: Date.now(),
     dailyResults: {},
     campaignProgress: {},
+    puzzleProgress: {},
   }
 }
 
 export async function getProfile(): Promise<ProfileRecord> {
   const db = await getDb()
-  return (await db?.get('profile', 'me')) ?? emptyProfile()
+  const record = await db?.get('profile', 'me')
+  // New progression fields are additive: profiles from earlier versions keep
+  // their history and receive the same defaults as a fresh profile.
+  return { ...emptyProfile(), ...record }
 }
 
 export async function putProfile(profile: ProfileRecord): Promise<void> {

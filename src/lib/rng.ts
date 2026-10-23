@@ -5,6 +5,8 @@
  * challenges and particle layouts are reproducible — which makes them testable,
  * shareable and identical across devices.
  */
+import { localDay } from './calendar.ts'
+
 export interface Rng {
   /** Uniform float in [0, 1). */
   next(): number
@@ -65,8 +67,8 @@ export function hashString(input: string): number {
   return h >>> 0
 }
 
-/** A seed that is identical for everyone on a given calendar day (UTC). */
+/** A seed shared by players on the same local calendar date. */
 export function dailySeed(date = new Date()): number {
-  const iso = `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`
+  const iso = localDay(date).split('-').map(Number).join('-')
   return hashString(`noqat-daily-${iso}`)
 }

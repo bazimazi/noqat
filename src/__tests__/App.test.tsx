@@ -120,8 +120,8 @@ describe('playing a game', () => {
     })
     useUi.setState({ screen: 'game' })
     renderApp()
-    expect(await screen.findByText('Ada')).toBeInTheDocument()
-    expect(screen.getByText('Linus')).toBeInTheDocument()
+    expect(await screen.findByRole('group', { name: 'Ada' })).toHaveTextContent('Ada')
+    expect(screen.getByRole('group', { name: 'Linus' })).toHaveTextContent('Linus')
   })
 
   it('narrates moves in the live region', async () => {

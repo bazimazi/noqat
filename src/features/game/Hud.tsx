@@ -68,13 +68,15 @@ export const PlayerCard = memo(function PlayerCard({
 
   return (
     <motion.div
-      className={clsx('nq-panel flex items-center gap-3 px-3 py-2.5', active && 'shadow-lg')}
+      className={clsx('nq-panel flex min-w-0 items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3 sm:py-2.5', active && 'shadow-lg')}
       animate={{
         y: active ? -3 : 0,
         borderColor: active ? palette.line : 'var(--nq-border)',
       }}
       transition={{ type: 'spring', stiffness: 320, damping: 28 }}
       aria-current={active ? 'true' : undefined}
+      role="group"
+      aria-label={player.name}
     >
       <Avatar palette={palette} thinking={thinking} confidence={confidence} kind={player.kind} />
 
@@ -97,7 +99,7 @@ export const PlayerCard = memo(function PlayerCard({
 
       <motion.div
         key={pulse}
-        className="nq-numeric min-w-9 text-end text-2xl font-bold"
+        className="nq-numeric min-w-7 text-end text-xl font-bold sm:min-w-9 sm:text-2xl"
         style={{ color: palette.line }}
         initial={pulse === 0 ? false : { scale: 1.45 }}
         animate={{ scale: 1 }}
@@ -129,7 +131,7 @@ function Avatar({
   const smile = (mood - 0.5) * 8
   return (
     <div
-      className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full"
+      className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full sm:h-10 sm:w-10"
       style={{ background: palette.fill, border: `2px solid ${palette.line}` }}
       aria-hidden="true"
     >

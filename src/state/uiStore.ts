@@ -3,6 +3,7 @@
  * Nothing here survives a reload — that is the point.
  */
 import { create } from 'zustand'
+import type { GameMode } from './gameStore.ts'
 
 export type Screen =
   | 'menu'
@@ -35,7 +36,10 @@ export interface UiState {
   themeTransition: boolean
   installPromptAvailable: boolean
   online: boolean
+  setupOpponent: 'ai' | 'human'
+  setupMode: GameMode
 
+  configureSetup: (options: { opponent?: 'ai' | 'human'; mode?: GameMode }) => void
   go: (screen: Screen) => void
   back: () => void
   openSheet: (sheet: UiState['sheet']) => void
@@ -57,6 +61,13 @@ export const useUi = create<UiState>()((set, get) => ({
   themeTransition: false,
   installPromptAvailable: false,
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
+  setupOpponent: 'ai',
+  setupMode: 'classic',
+
+  configureSetup: (options) => set((state) => ({
+    screen: 'setup', previous: state.screen, sheet: 'none',
+    setupOpponent: options.opponent ?? 'ai', setupMode: options.mode ?? 'classic',
+  })),
 
   go: (screen) => set((state) => ({ screen, previous: state.screen, sheet: 'none' })),
   back: () => set((state) => ({ screen: state.previous ?? 'menu', previous: null, sheet: 'none' })),

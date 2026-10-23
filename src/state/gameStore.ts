@@ -24,6 +24,7 @@ import { analyze } from '../core/analysis.ts'
 import { serializeMoves, type SerializedGame } from '../core/serialization.ts'
 import { deserializeGame } from '../core/serialization.ts'
 import type { Difficulty } from '../ai/types.ts'
+import { gardenOpening } from '../core/garden.ts'
 
 export type PlayerKind = 'human' | 'ai' | 'remote'
 
@@ -40,6 +41,9 @@ export const GAME_MODES = [
   'classic',
   'speed',
   'blitz',
+  'garden',
+  'misere',
+  'one-line',
   'puzzle',
   'daily',
   'campaign',
@@ -80,6 +84,10 @@ export interface StartConfig {
    * games, which must never touch this player's statistics.
    */
   readonly resultRecorded?: boolean
+  /** Remaining per-player milliseconds from an autosave. Used on resume. */
+  readonly clocks?: readonly number[]
+  /** Original creation time from an autosave. Used on resume. */
+  readonly startedAt?: number
 }
 
 export interface CaptureEvent {
@@ -158,6 +166,9 @@ const CLOCK_PRESETS: Record<GameMode, Partial<RuleSet>> = {
   classic: {},
   speed: { moveTimeLimit: 10 },
   blitz: { gameTimeLimit: 180 },
+  garden: {},
+  misere: { misere: true },
+  'one-line': { extraTurnOnCapture: false },
   puzzle: {},
   daily: {},
   campaign: {},
@@ -172,6 +183,14 @@ function makeId(): string {
 function initialClocks(rules: RuleSet, playerCount: number): number[] {
   const total = rules.gameTimeLimit > 0 ? rules.gameTimeLimit * 1000 : Number.POSITIVE_INFINITY
   return new Array(playerCount).fill(total)
+}
+
+function restoreClocks(rules: RuleSet, playerCount: number, saved?: readonly number[]): number[] {
+  return initialClocks(rules, playerCount).map((initial, player) => {
+    const value = saved?.[player]
+    if (!Number.isFinite(initial) || typeof value !== 'number' || !Number.isFinite(value)) return initial
+    return Math.max(0, Math.min(initial, value))
+  })
 }
 
 function deadlineFor(rules: RuleSet, now: number): number | null {
@@ -208,16 +227,22 @@ export const useGame = create<GameStoreState>()((set, get) => ({
 
   start: (config) => {
     const mode = config.mode ?? 'classic'
+    const now = Date.now()
+    const seed = config.seed ?? now
     const rules: RuleSet = {
       ...DEFAULT_RULES,
       ...CLOCK_PRESETS[mode],
+      ...(mode === 'garden' ? { preplacedEdges: gardenOpening(config.size, seed) } : {}),
       ...config.rules,
       playerCount: config.players.length,
     }
-    const now = Date.now()
 
     if (config.resume) {
       const restored = deserializeGame(config.resume)
+      const clocks = restoreClocks(restored.rules, config.players.length, config.clocks)
+      const complete = isComplete(restored.positions[restored.positions.length - 1])
+      const expired = complete ? -1 : clocks.findIndex((clock) => clock === 0)
+      const finished = complete || expired >= 0
       set({
         id: config.id ?? makeId(),
         size: restored.size,
@@ -225,22 +250,23 @@ export const useGame = create<GameStoreState>()((set, get) => ({
         mode,
         players: config.players,
         themeId: config.themeId ?? 'persian',
-        seed: config.seed ?? now,
+        seed,
         positions: restored.positions as Position[],
         moves: restored.moves as Move[],
         cursor: restored.positions.length - 1,
         replaying: false,
-        status: isComplete(restored.positions[restored.positions.length - 1]) ? 'finished' : 'playing',
-        startedAt: now,
-        finishedAt: null,
-        clocks: initialClocks(restored.rules, config.players.length),
-        moveDeadline: deadlineFor(restored.rules, now),
+        status: finished ? 'finished' : 'playing',
+        startedAt: typeof config.startedAt === 'number' && Number.isFinite(config.startedAt) && config.startedAt > 0
+          ? Math.min(now, config.startedAt) : now,
+        finishedAt: finished ? now : null,
+        clocks,
+        moveDeadline: finished ? null : deadlineFor(restored.rules, now),
         thinking: false,
         hintEdge: null,
         lastCapture: null,
         announcement: '',
         resignedBy: null,
-        flaggedBy: null,
+        flaggedBy: expired >= 0 ? expired : null,
         context: config.context ?? {},
         resultRecorded: config.resultRecorded ?? false,
       })
@@ -254,7 +280,7 @@ export const useGame = create<GameStoreState>()((set, get) => ({
       mode,
       players: config.players,
       themeId: config.themeId ?? 'persian',
-      seed: config.seed ?? now,
+      seed,
       positions: [createPosition(config.size, rules)],
       moves: [],
       cursor: 0,

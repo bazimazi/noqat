@@ -29,6 +29,7 @@ export interface SettingsState {
   confirmMoves: boolean
   showCoordinates: boolean
   showChainWarnings: boolean
+  showCoach: boolean
   /**
    * Keep the board's keyboard cursor visible at all times. Off by default: the
    * board still reveals it the moment someone actually navigates by key, so
@@ -51,6 +52,7 @@ export interface SettingsState {
 }
 
 const DEFAULTS = {
+  showCoach: true,
   themeId: DEFAULT_THEME,
   colorMode: 'auto' as const,
   locale: 'auto' as const,

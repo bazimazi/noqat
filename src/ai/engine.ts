@@ -16,6 +16,7 @@ import { mctsBestMove } from './mcts.ts'
 import { searchBestMove, TranspositionTable } from './minimax.ts'
 import { SearchState } from './search-state.ts'
 import { DIFFICULTY_PROFILES, type AiRequest, type AiResponse, type Difficulty } from './types.ts'
+import { chooseVariantMove } from './variant-search.ts'
 
 const tables = new Map<number, TranspositionTable>()
 
@@ -175,6 +176,11 @@ export function chooseMove(request: AiRequest): AiResponse {
       method: 'greedy',
     }
   }
+
+  // The classic endgame solver, greedy policy and MCTS all assume that boxes
+  // are desirable and a capture retains the turn. Use a rule-aware search when
+  // either assumption changes, including the existing misère campaign levels.
+  if (rules.misere || !rules.extraTurnOnCapture) return chooseVariantMove(request, started)
 
   const state = new SearchState(position)
 

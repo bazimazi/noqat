@@ -35,6 +35,7 @@ test.describe('boot', () => {
 
   test('registers a service worker for offline play', async ({ page }) => {
     await page.goto('/')
+    await page.evaluate(async () => { await navigator.serviceWorker.ready })
     const registered = await page.evaluate(async () => {
       if (!('serviceWorker' in navigator)) return false
       const registration = await navigator.serviceWorker.getRegistration()

@@ -8,6 +8,7 @@ import {
 } from '../serialization.ts'
 import { applyMove, createPosition, legalMoves } from '../rules.ts'
 import { DEFAULT_RULES, type BoardSize, type Move } from '../types.ts'
+import { gardenOpening } from '../garden.ts'
 
 const size: BoardSize = { rows: 3, cols: 3 }
 
@@ -75,6 +76,36 @@ describe('serialization', () => {
       moves: [0, 31, 32, 100, 311],
     }
     expect(decodeShareCode(encodeShareCode(data)).moves).toEqual(data.moves)
+  })
+
+  it('preserves variant rules, terrain, clocks and player count in share codes', () => {
+    const rules = {
+      ...DEFAULT_RULES,
+      misere: true,
+      extraTurnOnCapture: false,
+      playerCount: 4,
+      moveTimeLimit: 10,
+      gameTimeLimit: 180,
+      preplacedEdges: gardenOpening(size, 47),
+    }
+    let position = createPosition(size, rules)
+    const moves: Move[] = []
+    for (let turn = 0; turn < 10; turn++) {
+      const result = applyMove(position, legalMoves(position)[0], rules)
+      position = result.position
+      moves.push(result.move)
+    }
+    const decoded = decodeShareCode(encodeShareCode(serializeMoves(size, rules, moves)))
+    expect(decoded.rules).toEqual(rules)
+    expect(deserializeGame(decoded).positions.at(-1)).toEqual(position)
+  })
+
+  it('still reads original version-one links', () => {
+    const decoded = decodeShareCode('BCCADABC')
+    expect(decoded.rows).toBe(2)
+    expect(decoded.cols).toBe(2)
+    expect(decoded.rules).toEqual(DEFAULT_RULES)
+    expect(decoded.moves).toEqual([0, 1, 2])
   })
 
   it('rejects malformed share codes', () => {

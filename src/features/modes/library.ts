@@ -14,6 +14,7 @@ import { SearchState } from '../../ai/search-state.ts'
 import { explainCaptureChoice, solveLoonyEndgame } from '../../ai/endgame.ts'
 import type { Difficulty } from '../../ai/types.ts'
 import { createRng, dailySeed, hashString } from '../../lib/rng.ts'
+import { localDay } from '../../lib/calendar.ts'
 
 /* ------------------------------------------------------------------ *
  * generation helper
@@ -174,7 +175,7 @@ const DAILY_SIZES: BoardSize[] = [
 const DAILY_DIFFICULTIES: Difficulty[] = ['medium', 'hard', 'hard', 'expert', 'expert', 'grandmaster']
 
 /**
- * The same challenge for everyone in the world on a given UTC day. Derived
+ * The same challenge for everyone on a given local calendar date. Derived
  * purely from the date, so it needs no server and works offline.
  */
 export function dailyChallenge(date = new Date()): DailyChallenge {
@@ -196,7 +197,7 @@ export function dailyChallenge(date = new Date()): DailyChallenge {
 
   const totalBoxes = size.rows * size.cols
   return {
-    isoDate: date.toISOString().slice(0, 10),
+    isoDate: localDay(date),
     size,
     difficulty,
     preplacedEdges: toPreplaced(position),
@@ -271,9 +272,10 @@ function buildCampaign(): CampaignLevel[] {
 }
 
 export function starsFor(level: CampaignLevel, boxes: number): 0 | 1 | 2 | 3 {
-  if (boxes >= level.stars[2]) return 3
-  if (boxes >= level.stars[1]) return 2
-  if (boxes >= level.stars[0]) return 1
+  const score = level.misere ? level.size.rows * level.size.cols - boxes : boxes
+  if (score >= level.stars[2]) return 3
+  if (score >= level.stars[1]) return 2
+  if (score >= level.stars[0]) return 1
   return 0
 }
 

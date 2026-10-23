@@ -10,6 +10,7 @@ import { STARTER_THEMES, THEME_UNLOCKS } from '../themes/registry.ts'
 import type { ThemeId } from '../themes/types.ts'
 import { emptyProfile, getProfile, putProfile } from '../persistence/repositories.ts'
 import type { ProfileRecord } from '../persistence/db.ts'
+import { localDay, previousDay } from '../lib/calendar.ts'
 
 /** XP needed to go from `level` to `level + 1`. */
 export function xpForLevel(level: number): number {
@@ -54,6 +55,7 @@ export interface ProfileState extends ProfileRecord {
   bumpAchievement: (metric: Achievement['metric'], value: number) => Promise<string[]>
   recordDaily: (isoDate: string, score: number, par: number, won: boolean) => Promise<void>
   recordCampaign: (levelId: string, stars: number, score: number) => Promise<void>
+  recordPuzzle: (puzzleId: string, stars: number, score: number) => Promise<void>
   setName: (name: string) => Promise<void>
   isThemeUnlocked: (themeId: ThemeId) => boolean
   updateElo: (opponentElo: number, result: 1 | 0.5 | 0) => Promise<number>
@@ -126,7 +128,11 @@ export const useProfile = create<ProfileState>()((set, get) => ({
   },
 
   recordDaily: async (isoDate, score, par, won) => {
-    const dailyResults = { ...get().dailyResults, [isoDate]: { score, par, won } }
+    const existing = get().dailyResults[isoDate]
+    const dailyResults = {
+      ...get().dailyResults,
+      [isoDate]: { score: Math.max(score, existing?.score ?? 0), par, won: won || (existing?.won ?? false) },
+    }
     set({ dailyResults })
     await putProfile({ ...toRecord(get()), dailyResults })
     const streak = countDailyStreak(dailyResults)
@@ -142,6 +148,16 @@ export const useProfile = create<ProfileState>()((set, get) => ({
     }
     set({ campaignProgress })
     await putProfile({ ...toRecord(get()), campaignProgress })
+  },
+
+  recordPuzzle: async (puzzleId, stars, score) => {
+    const existing = get().puzzleProgress[puzzleId]
+    const puzzleProgress = {
+      ...get().puzzleProgress,
+      [puzzleId]: { stars: Math.max(stars, existing?.stars ?? 0), bestScore: Math.max(score, existing?.bestScore ?? 0) },
+    }
+    set({ puzzleProgress })
+    await putProfile({ ...toRecord(get()), puzzleProgress })
   },
 
   setName: async (name) => {
@@ -177,24 +193,25 @@ function toRecord(state: ProfileState): ProfileRecord {
     createdAt: state.createdAt,
     dailyResults: state.dailyResults,
     campaignProgress: state.campaignProgress,
+    puzzleProgress: state.puzzleProgress,
   }
 }
 
 /** Consecutive days (ending today or yesterday) with a completed daily. */
 export function countDailyStreak(results: Record<string, unknown>, today = new Date()): number {
   let streak = 0
-  const cursor = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()))
+  let cursor = localDay(today)
   // Allow the streak to still count if today has not been played yet.
-  if (!results[isoDay(cursor)]) cursor.setUTCDate(cursor.getUTCDate() - 1)
-  while (results[isoDay(cursor)]) {
+  if (!results[cursor]) cursor = previousDay(cursor)
+  while (results[cursor]) {
     streak++
-    cursor.setUTCDate(cursor.getUTCDate() - 1)
+    cursor = previousDay(cursor)
   }
   return streak
 }
 
 export function isoDay(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  return localDay(date)
 }
 
 /** XP for a finished game, scaled by board size and opponent strength. */

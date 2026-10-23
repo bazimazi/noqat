@@ -10,6 +10,19 @@ npm test             # unit + integration suite
 npm run server       # optional: online multiplayer on ws://localhost:8787
 ```
 
+## More ways to play
+
+- **Persian Garden:** a fresh, symmetric opening inspired by chahar bagh paths. Neutral lines never give either player a starting score.
+- **Reverse:** the fewest boxes wins. The opponent searches with the reversed objective.
+- **One Line:** every move passes the turn, including captures. The AI follows this rule too.
+- **A daily ritual:** direct challenge launch, a local-calendar streak, preserved personal bests, and challenge targets that survive reloads.
+- **Puzzle mastery:** results judge your score against the proven target, award up to three stars, and remember your best attempt.
+- **Your corner:** optional contextual coaching, line previews, capture-chain celebrations, a visible move countdown, and a board completion strip.
+
+The home screen brings together original Persian courtyard artwork, tile geometry, turquoise and gold, with authored Persian copy and RTL layouts. Existing themes remain available. New experience copy is available in English and Persian; other locales use English for these additions while retaining their existing translations.
+
+See [the research and design roadmap](docs/ENJOYMENT_RESEARCH.md) for 33 opportunities, cultural references, sources, and larger original concepts considered for future releases.
+
 ---
 
 ## What is actually interesting here
@@ -148,6 +161,8 @@ npm run e2e           # playwright; run `npx playwright install` first
 npm run coverage
 ```
 
+If using an installed Chrome browser instead of downloading Playwright's Chromium, set `PLAYWRIGHT_CHANNEL=chrome` before running `npm run e2e`. Both desktop and Pixel 7 viewport projects run against the production build.
+
 The suite covers the engine exhaustively (rules, geometry, chain decomposition,
 endgame values verified by hand), AI strength ordering (Grandmaster must beat
 Beginner; Expert must not lose to Easy), all eleven locale catalogues for
@@ -179,9 +194,6 @@ Deliberately not built, and worth knowing before relying on them:
 - **Seasonal leagues, tournaments, a theme marketplace.** The extension points
   exist (theme registry, mode generators, transport interface); the product
   surfaces do not.
-- **Puzzle par is stated but not scored.** Puzzles carry a proven target and the
-  result screen receives it, but nothing yet grades an attempt against it the
-  way the campaign grades stars.
 - **No Storybook.** The component primitives are small and covered by the
   jsdom tests; a story catalogue would be scaffolding without a design team
   consuming it.

@@ -14,8 +14,9 @@ import { useSettings } from '../../state/settingsStore.ts'
 import { useGame, type GameContext, type GameMode, type PlayerConfig } from '../../state/gameStore.ts'
 import { DIFFICULTIES, DIFFICULTY_PROFILES, type Difficulty } from '../../ai/types.ts'
 import { getTheme } from '../../themes/registry.ts'
-import { clampBoardSize, MAX_BOARD, MIN_BOARD } from '../../core/board.ts'
+import { clampBoardSize, edgeEndpoints, MAX_BOARD, MIN_BOARD } from '../../core/board.ts'
 import { dailyChallenge } from '../modes/library.ts'
+import { gardenOpening, getVariantCopy, isVariantMode, VARIANT_MODES, variantUiCopy } from '../modes/variants.ts'
 import type { BoardSize } from '../../core/types.ts'
 
 const PRESETS: { label: string; size: BoardSize }[] = [
@@ -28,8 +29,10 @@ const PRESETS: { label: string; size: BoardSize }[] = [
 type Opponent = 'ai' | 'human'
 
 export function SetupScreen() {
-  const { t, n } = useI18n()
+  const { t, n, locale } = useI18n()
   const go = useUi((s) => s.go)
+  const setupOpponent = useUi((s) => s.setupOpponent)
+  const setupMode = useUi((s) => s.setupMode)
   const settings = useSettings()
   const theme = useMemo(() => getTheme(settings.themeId), [settings.themeId])
 
@@ -37,10 +40,13 @@ export function SetupScreen() {
   const [custom, setCustom] = useState(
     !PRESETS.some((p) => p.size.rows === settings.lastBoardSize.rows && p.size.cols === settings.lastBoardSize.cols),
   )
-  const [opponent, setOpponent] = useState<Opponent>('ai')
+  const [opponent, setOpponent] = useState<Opponent>(setupOpponent)
   const [difficulty, setDifficulty] = useState<Difficulty>(settings.lastDifficulty)
-  const [mode, setMode] = useState<GameMode>('classic')
+  const [mode, setMode] = useState<GameMode>(setupMode)
   const [playerCount, setPlayerCount] = useState(2)
+  const [gardenSeed, setGardenSeed] = useState(() => Date.now() >>> 0)
+  const opening = useMemo(() => mode === 'garden' ? gardenOpening(size, gardenSeed) : [], [size, mode, gardenSeed])
+  const variantCopy = variantUiCopy(locale)
 
   const start = (overrides?: {
     mode?: GameMode
@@ -71,6 +77,7 @@ export function SetupScreen() {
       players,
       mode: overrides?.mode ?? mode,
       themeId: settings.themeId,
+      ...((overrides?.mode ?? mode) === 'garden' ? { seed: gardenSeed } : {}),
       ...(overrides?.seed !== undefined ? { seed: overrides.seed } : {}),
       ...(overrides?.preplaced ? { rules: { preplacedEdges: [...overrides.preplaced] } } : {}),
       ...(overrides?.context ? { context: overrides.context } : {}),
@@ -151,8 +158,16 @@ export function SetupScreen() {
                 </div>
               )}
             </div>
-            <BoardPreview size={size} />
+            <BoardPreview size={size} preplaced={opening} />
           </div>
+          {mode === 'garden' && (
+            <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: 'var(--nq-border)' }}>
+              <p className="text-xs" style={{ color: 'var(--nq-text-muted)' }}>{variantCopy.opening}</p>
+              <Button size="sm" onClick={() => setGardenSeed((seed) => (seed + 0x9e3779b9) >>> 0)}>
+                {variantCopy.shuffle}
+              </Button>
+            </div>
+          )}
         </Panel>
 
         <Panel>
@@ -205,15 +220,29 @@ export function SetupScreen() {
             label={t('setup.mode')}
             value={mode}
             onChange={(value) => setMode(value)}
+            className="[&>button]:basis-[28%]"
             options={[
               { value: 'classic', label: t('mode.classic'), hint: t('mode.classicDesc') },
               { value: 'speed', label: t('mode.speed'), hint: t('mode.speedDesc') },
               { value: 'blitz', label: t('mode.blitz'), hint: t('mode.blitzDesc') },
+              ...VARIANT_MODES.map((id) => ({
+                value: id,
+                label: getVariantCopy(id, locale).name,
+                hint: getVariantCopy(id, locale).description,
+              })),
             ]}
           />
           <p className="mt-2 text-xs" style={{ color: 'var(--nq-text-muted)' }}>
-            {mode === 'classic' ? t('mode.classicDesc') : mode === 'speed' ? t('mode.speedDesc') : t('mode.blitzDesc')}
+            {isVariantMode(mode)
+              ? getVariantCopy(mode, locale).description
+              : mode === 'classic' ? t('mode.classicDesc') : mode === 'speed' ? t('mode.speedDesc') : t('mode.blitzDesc')}
           </p>
+          {isVariantMode(mode) && (
+            <div className="mt-3 flex items-center gap-3 rounded-xl border p-3" style={{ borderColor: 'var(--nq-border)', background: 'var(--nq-surface-alt)' }}>
+              <span className="text-2xl" style={{ color: 'var(--nq-accent)' }} aria-hidden="true">{getVariantCopy(mode, locale).icon}</span>
+              <p className="text-xs font-semibold">{getVariantCopy(mode, locale).rule}</p>
+            </div>
+          )}
         </Panel>
 
         <div className="grid gap-2 sm:grid-cols-2">
@@ -236,7 +265,7 @@ export function SetupScreen() {
 }
 
 /** A live miniature of the chosen board — cheaper to read than "6×6". */
-function BoardPreview({ size }: { size: BoardSize }) {
+function BoardPreview({ size, preplaced = [] }: { size: BoardSize; preplaced?: readonly number[] }) {
   const dots: { x: number; y: number }[] = []
   for (let r = 0; r <= size.rows; r++) {
     for (let c = 0; c <= size.cols; c++) dots.push({ x: c, y: r })
@@ -253,6 +282,9 @@ function BoardPreview({ size }: { size: BoardSize }) {
       animate={{ opacity: 1, scale: 1 }}
       key={`${size.rows}x${size.cols}`}
     >
+      {preplaced.map((edge) => (
+        <line key={`path-${edge}`} {...edgeEndpoints(size, edge)} stroke="var(--nq-accent)" strokeWidth="0.09" strokeLinecap="round" />
+      ))}
       {dots.map((dot, index) => (
         <circle key={index} cx={dot.x} cy={dot.y} r={radius} fill="var(--nq-dot)" />
       ))}

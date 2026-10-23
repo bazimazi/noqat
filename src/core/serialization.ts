@@ -66,6 +66,7 @@ export function deserializeGame(data: SerializedGame): DeserializedGame {
  * ------------------------------------------------------------------ */
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+const SHARE_CODE_VERSION = 2
 
 /** Variable-length base64url encoding of non-negative integers. */
 function encodeVarint(value: number, out: string[]): void {
@@ -89,16 +90,22 @@ function decodeVarint(input: string, cursor: { i: number }): number {
     value |= (idx & 0x1f) << shift
     if ((idx & 0x20) === 0) return value >>> 0
     shift += 5
+    if (shift >= 35) throw new Error('Share code integer is too large')
   }
 }
 
 /** Encodes a game into a short, URL-safe string suitable for share links. */
 export function encodeShareCode(game: SerializedGame): string {
   const out: string[] = []
-  encodeVarint(game.v, out)
+  encodeVarint(SHARE_CODE_VERSION, out)
   encodeVarint(game.rows, out)
   encodeVarint(game.cols, out)
-  encodeVarint(game.rules.misere ? 1 : 0, out)
+  encodeVarint((game.rules.misere ? 1 : 0) | (game.rules.extraTurnOnCapture ? 0 : 2), out)
+  encodeVarint(game.rules.playerCount, out)
+  encodeVarint(game.rules.moveTimeLimit, out)
+  encodeVarint(game.rules.gameTimeLimit, out)
+  encodeVarint(game.rules.preplacedEdges.length, out)
+  for (const edge of game.rules.preplacedEdges) encodeVarint(edge, out)
   encodeVarint(game.moves.length, out)
   for (const edge of game.moves) encodeVarint(edge, out)
   return out.join('')
@@ -106,19 +113,29 @@ export function encodeShareCode(game: SerializedGame): string {
 
 export function decodeShareCode(code: string): SerializedGame {
   const cursor = { i: 0 }
-  const v = decodeVarint(code, cursor)
-  if (v !== REPLAY_VERSION) throw new Error(`Unsupported share code version ${v}`)
+  const wireVersion = decodeVarint(code, cursor)
+  if (wireVersion !== 1 && wireVersion !== SHARE_CODE_VERSION) throw new Error(`Unsupported share code version ${wireVersion}`)
   const rows = decodeVarint(code, cursor)
   const cols = decodeVarint(code, cursor)
-  const misere = decodeVarint(code, cursor) === 1
+  const flags = decodeVarint(code, cursor)
+  let rules: RuleSet = { ...DEFAULT_RULES, misere: (flags & 1) !== 0 }
+  if (wireVersion >= 2) {
+    const playerCount = decodeVarint(code, cursor)
+    const moveTimeLimit = decodeVarint(code, cursor)
+    const gameTimeLimit = decodeVarint(code, cursor)
+    const terrainCount = decodeVarint(code, cursor)
+    const preplacedEdges: number[] = []
+    for (let i = 0; i < terrainCount; i++) preplacedEdges.push(decodeVarint(code, cursor))
+    rules = { ...rules, extraTurnOnCapture: (flags & 2) === 0, playerCount, moveTimeLimit, gameTimeLimit, preplacedEdges }
+  }
   const count = decodeVarint(code, cursor)
   const moves: number[] = []
   for (let i = 0; i < count; i++) moves.push(decodeVarint(code, cursor))
   return {
-    v,
+    v: REPLAY_VERSION,
     rows,
     cols,
-    rules: { ...DEFAULT_RULES, misere },
+    rules,
     moves,
   }
 }

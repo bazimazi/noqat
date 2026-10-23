@@ -10,6 +10,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type { SerializedGame } from '../core/serialization.ts'
 import type { Difficulty } from '../ai/types.ts'
+import type { GameContext } from '../state/gameStore.ts'
 
 export const DB_NAME = 'noqat'
 export const DB_VERSION = 1
@@ -26,6 +27,8 @@ export interface SavedGame {
   readonly themeId: string
   /** Remaining clock per player, in milliseconds. */
   readonly clocks?: readonly number[]
+  readonly context?: GameContext
+  readonly resultRecorded?: boolean
 }
 
 export interface ReplayRecord {
@@ -78,6 +81,7 @@ export interface ProfileRecord {
   /** Daily-challenge completions, keyed by ISO date. */
   dailyResults: Record<string, { score: number; par: number; won: boolean }>
   campaignProgress: Record<string, { stars: number; bestScore: number }>
+  puzzleProgress: Record<string, { stars: number; bestScore: number }>
 }
 
 interface NoqatDB extends DBSchema {

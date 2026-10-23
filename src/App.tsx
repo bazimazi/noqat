@@ -8,8 +8,8 @@
  *
  * Heavy screens are lazily loaded so the first paint only pays for the menu.
  */
-import { Suspense, lazy, useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import { ThemeShell } from './features/shell/ThemeShell.tsx'
 import { MenuScreen } from './features/menu/MenuScreen.tsx'
 import { useUi, type Screen } from './state/uiStore.ts'
@@ -20,6 +20,8 @@ import { isLocale } from './i18n/locales.ts'
 import { decodeShareCode } from './core/serialization.ts'
 import { useGame } from './state/gameStore.ts'
 import { requestPersistence } from './persistence/db.ts'
+import { dailyChallenge } from './features/modes/library.ts'
+import { clampBoardSize } from './core/board.ts'
 
 const SetupScreen = lazy(() => import('./features/menu/SetupScreen.tsx').then((m) => ({ default: m.SetupScreen })))
 const GameScreen = lazy(() => import('./features/game/GameScreen.tsx').then((m) => ({ default: m.GameScreen })))
@@ -42,7 +44,8 @@ export default function App() {
   const settingsLocale = useSettings((s) => s.locale)
   const setA11y = useSettings((s) => s.setA11y)
   const loadProfile = useProfile((s) => s.load)
-  const { setLocale } = useI18n()
+  const { setLocale, t } = useI18n()
+  const handledDeepLink = useRef(false)
   const [burst, setBurst] = useState<{ at: number; colors: readonly string[]; kind: string } | null>(null)
 
   // ---- boot -------------------------------------------------------------
@@ -66,6 +69,8 @@ export default function App() {
 
   // ---- deep links -------------------------------------------------------
   useEffect(() => {
+    if (handledDeepLink.current) return
+    handledDeepLink.current = true
     const params = new URLSearchParams(location.search)
     const replay = params.get('replay')
     const room = params.get('room')
@@ -75,11 +80,12 @@ export default function App() {
       try {
         const decoded = decodeShareCode(replay)
         useGame.getState().start({
-          size: { rows: decoded.rows, cols: decoded.cols },
-          players: [
-            { kind: 'human', name: 'A' },
-            { kind: 'human', name: 'B' },
-          ],
+          size: clampBoardSize({ rows: decoded.rows, cols: decoded.cols }),
+          players: Array.from({ length: Math.max(2, Math.min(4, decoded.rules.playerCount)) }, (_, index) => ({
+            kind: 'human' as const, name: String.fromCharCode(65 + index),
+          })),
+          mode: decoded.rules.misere ? 'misere' : !decoded.rules.extraTurnOnCapture ? 'one-line'
+            : decoded.rules.preplacedEdges.length > 0 ? 'garden' : 'classic',
           resume: decoded,
           // Somebody else's game: watchable, but it must never be paid out into
           // this player's XP or statistics.
@@ -93,11 +99,22 @@ export default function App() {
     } else if (room) {
       go('online')
     } else if (shortcut === 'ai' || shortcut === 'local') {
-      go('setup')
+      useUi.getState().configureSetup({ opponent: shortcut === 'local' ? 'human' : 'ai' })
     } else if (shortcut === 'daily') {
-      go('setup')
+      const challenge = dailyChallenge()
+      const settings = useSettings.getState()
+      useGame.getState().start({
+        size: challenge.size, mode: 'daily', themeId: settings.themeId, seed: challenge.seed,
+        players: [
+          { kind: 'human', name: settings.playerName || t('common.you') },
+          { kind: 'ai', name: t(`difficulty.${challenge.difficulty}` as 'difficulty.medium'), difficulty: challenge.difficulty },
+        ],
+        rules: { preplacedEdges: challenge.preplacedEdges },
+        context: { dailyDate: challenge.isoDate, par: challenge.par },
+      })
+      go('game')
     }
-  }, [go])
+  }, [go, t])
 
   // ---- connectivity and install prompt ----------------------------------
   useEffect(() => {
@@ -129,7 +146,7 @@ export default function App() {
   }, [setOnline, setInstallPromptAvailable])
 
   return (
-    <ThemeShell burst={burst}>
+    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}><ThemeShell burst={burst}>
       <AnimatePresence mode="wait" initial={false}>
         <motion.main
           key={screen}
@@ -145,7 +162,7 @@ export default function App() {
         </motion.main>
       </AnimatePresence>
       <Toasts />
-    </ThemeShell>
+    </ThemeShell></MotionConfig>
   )
 }
 

@@ -17,18 +17,21 @@ import { CAMPAIGN, drillSet, puzzlePage, type CampaignLevel, type Puzzle, type T
 import { layoutFor } from '../board/geometry.ts'
 import { createPosition } from '../../core/rules.ts'
 import { DEFAULT_RULES } from '../../core/types.ts'
+import { progressionCopy } from '../result/copy.ts'
 
 /* ------------------------------------------------------------------ *
  * puzzles
  * ------------------------------------------------------------------ */
 
 export function PuzzlesScreen() {
-  const { t, n } = useI18n()
+  const { t, n, locale } = useI18n()
+  const copy = progressionCopy(locale)
   const back = useUi((s) => s.back)
   const go = useUi((s) => s.go)
   const themeId = useSettings((s) => s.themeId)
   const [page, setPage] = useState(1)
   const puzzles = useMemo(() => puzzlePage(page, 9), [page])
+  const progress = useProfile((s) => s.puzzleProgress)
 
   const play = (puzzle: Puzzle) => {
     useGame.getState().start({
@@ -52,10 +55,18 @@ export function PuzzlesScreen() {
           <BackIcon />
         </IconButton>
         <h1 className="nq-display flex-1 text-xl">{t('menu.puzzles')}</h1>
+        <Button size="sm" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+          {copy.previous}
+        </Button>
+        <span className="nq-numeric text-sm" aria-label={locale === 'fa' ? 'صفحه' : 'Page'}>{n(page)}</span>
         <Button size="sm" onClick={() => setPage((p) => p + 1)}>
           {t('common.next')}
         </Button>
       </header>
+
+      <p className="mx-auto mb-4 max-w-3xl text-sm" style={{ color: 'var(--nq-text-muted)' }}>
+        {copy.puzzleIntro}
+      </p>
 
       <ul className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {puzzles.map((puzzle, index) => (
@@ -80,8 +91,17 @@ export function PuzzlesScreen() {
                 </span>
               </div>
               <p className="text-xs" style={{ color: 'var(--nq-text-muted)' }}>
-                {t('game.boxesLeft', { n: puzzle.boxesLeft })} · {t('result.finalScore')} ≥ {n(puzzle.par)}
+                {t('game.boxesLeft', { n: puzzle.boxesLeft })} · {copy.target} ≥ {n(puzzle.par)}
               </p>
+              {progress[puzzle.id] && (
+                <div className="flex items-center justify-between text-xs" style={{ color: 'var(--nq-accent)' }}>
+                  <span aria-label={`${copy.stars}: ${n(progress[puzzle.id].stars)} / ${n(3)}`}>
+                    {'★'.repeat(progress[puzzle.id].stars)}
+                    <span style={{ opacity: 0.25 }}>{'★'.repeat(3 - progress[puzzle.id].stars)}</span>
+                  </span>
+                  <span>{copy.best}: {n(progress[puzzle.id].bestScore)}</span>
+                </div>
+              )}
               <Button size="sm" block variant="primary" onClick={() => play(puzzle)}>
                 {t('common.play')}
               </Button>
@@ -98,7 +118,8 @@ export function PuzzlesScreen() {
  * ------------------------------------------------------------------ */
 
 export function CampaignScreen() {
-  const { t, n } = useI18n()
+  const { t, n, locale } = useI18n()
+  const copy = progressionCopy(locale)
   const back = useUi((s) => s.back)
   const go = useUi((s) => s.go)
   const themeId = useSettings((s) => s.themeId)
@@ -138,6 +159,14 @@ export function CampaignScreen() {
         <h1 className="nq-display text-xl">{t('menu.campaign')}</h1>
       </header>
 
+      <div className="mx-auto mb-4 max-w-3xl">
+        <p className="mb-2 text-sm" style={{ color: 'var(--nq-text-muted)' }}>{copy.campaignIntro}</p>
+        <div className="flex items-center gap-3 text-xs">
+          <span>{copy.progress} {n(CAMPAIGN.filter((level) => (progress[level.id]?.stars ?? 0) > 0).length)} / {n(CAMPAIGN.length)}</span>
+          <span style={{ color: 'var(--nq-accent)' }}>★ {n(Object.values(progress).reduce((sum, level) => sum + level.stars, 0))} / {n(CAMPAIGN.length * 3)}</span>
+        </div>
+      </div>
+
       <ol className="mx-auto grid max-w-3xl gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {CAMPAIGN.map((level) => {
           // One level ahead of your best is always available, so a hard level
@@ -159,7 +188,7 @@ export function CampaignScreen() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 text-sm font-medium">
                     {n(level.size.rows)}×{n(level.size.cols)}
-                    {level.misere && <Badge>misère</Badge>}
+                    {level.misere && <Badge>{copy.misere}</Badge>}
                     {level.moveTimeLimit && <Badge>{n(level.moveTimeLimit)}s</Badge>}
                   </div>
                   <div className="text-xs" style={{ color: 'var(--nq-text-muted)' }}>
@@ -187,7 +216,8 @@ export function CampaignScreen() {
  * ------------------------------------------------------------------ */
 
 export function TrainerScreen() {
-  const { t, n } = useI18n()
+  const { t, n, locale } = useI18n()
+  const copy = progressionCopy(locale)
   const back = useUi((s) => s.back)
   const go = useUi((s) => s.go)
   const themeId = useSettings((s) => s.themeId)
@@ -217,8 +247,13 @@ export function TrainerScreen() {
         <h1 className="nq-display text-xl">{t('menu.trainer')}</h1>
       </header>
       <p className="mx-auto mb-4 max-w-2xl text-sm" style={{ color: 'var(--nq-text-muted)' }}>
-        {t('howto.tip')}
+        {copy.trainerIntro}
       </p>
+
+      <Panel className="mx-auto mb-4 max-w-3xl">
+        <h2 className="mb-1 text-sm font-semibold">{copy.lessonTitle}</h2>
+        <p className="text-xs" style={{ color: 'var(--nq-text-muted)' }}>{copy.lesson}</p>
+      </Panel>
 
       <ul className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {drills.map((drill) => (
